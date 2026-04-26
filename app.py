@@ -266,16 +266,22 @@ def webhook():
 
 @app.route("/test", methods=["GET"])
 def test_send():
+    sent = []
+    skipped = []
     for symbol in SYMBOLS:
-        price    = get_price(symbol)
+        price = get_price(symbol)
+        if not price or price == 0:
+            skipped.append(symbol)
+            continue
         candles  = get_candles(symbol)
         auto_lvl = calc_auto_levels(candles)
         man_lvl  = get_manual_levels()
         levels   = merge_levels(auto_lvl, man_lvl)
-        analysis = analyze_signal(candles, price or 0)
-        msg = build_message(symbol, price or 0, levels, analysis, "🔧 ทดสอบระบบ")
+        analysis = analyze_signal(candles, price)
+        msg = build_message(symbol, price, levels, analysis, "🔧 ทดสอบระบบ")
         send_line(msg)
-    return jsonify({"status": "sent", "symbols": list(SYMBOLS.keys())})
+        sent.append(symbol)
+    return jsonify({"status": "sent", "sent": sent, "skipped_market_closed": skipped})
 
 if __name__ == "__main__":
     t = threading.Thread(target=monitor_loop, daemon=True)
