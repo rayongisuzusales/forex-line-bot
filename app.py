@@ -263,8 +263,12 @@ def monitor_loop():
                 print(f"[ERROR] {symbol}: {e}")
 
 @app.route("/", methods=["GET"])
+def index():
+    return "OK", 200
+
+@app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "time": datetime.now(BKK).isoformat()})
+    return "OK", 200
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
