@@ -21,12 +21,14 @@ SL_PIPS = {
     "USDJPY": 15,
     "XAUUSD": 150,
     "EURUSD": 15,
+    "BTC/USD": 500,   # SL $500
 }
 
 SYMBOLS = {
-    "USDJPY": {"name": "💴 USD/JPY",        "pip": 0.01},
-    "XAUUSD": {"name": "🥇 Gold (XAU/USD)", "pip": 0.1},
-    "EURUSD": {"name": "💵 EUR/USD",         "pip": 0.0001},
+    "USDJPY":  {"name": "💴 USD/JPY",        "pip": 0.01},
+    "XAUUSD":  {"name": "🥇 Gold (XAU/USD)", "pip": 0.1},
+    "EURUSD":  {"name": "💵 EUR/USD",         "pip": 0.0001},
+    "BTC/USD": {"name": "₿ Bitcoin (BTC/USD)", "pip": 1.0},
 }
 
 price_state = {sym: {"last_price": None, "alerted_levels": set()} for sym in SYMBOLS}
