@@ -212,10 +212,12 @@ def near_level(price, level, pip_size, pips=10):
     return abs(price - level) <= pip_size * pips
 
 def monitor_loop():
-    tick = 0
+    last_interval_sent = {}  # เก็บว่าส่งรอบไหนไปแล้ว
     while True:
-        tick += 1
         time.sleep(60)
+        now = datetime.now(BKK)
+        current_slot = (now.hour * 60 + now.minute) // INTERVAL_MINUTES
+
         for symbol, info in SYMBOLS.items():
             try:
                 price = get_price(symbol)
@@ -226,14 +228,18 @@ def monitor_loop():
                 man_lvl  = get_manual_levels()
                 levels   = merge_levels(auto_lvl, man_lvl)
                 analysis = analyze_signal(candles, price)
+
                 # ข้ามถ้าราคา = 0 เช่น Forex ปิดเสาร์-อาทิตย์
                 if not price or price == 0:
                     print(f"[SKIP] {symbol} ราคา 0 — ตลาดปิด")
                     continue
 
                 trigger  = None
-                if tick % INTERVAL_MINUTES == 0:
+
+                # เช็คเวลาจริง — ส่งเมื่อถึง slot ใหม่ทุก 15 นาที
+                if last_interval_sent.get(symbol) != current_slot:
                     trigger = f"รายงาน {INTERVAL_MINUTES} นาที"
+                    last_interval_sent[symbol] = current_slot
                 pip = info["pip"]
                 for lvl in levels["support"]:
                     key = f"S{lvl}"
