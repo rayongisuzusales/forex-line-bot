@@ -226,6 +226,11 @@ def monitor_loop():
                 man_lvl  = get_manual_levels()
                 levels   = merge_levels(auto_lvl, man_lvl)
                 analysis = analyze_signal(candles, price)
+                # ข้ามถ้าราคา = 0 เช่น Forex ปิดเสาร์-อาทิตย์
+                if not price or price == 0:
+                    print(f"[SKIP] {symbol} ราคา 0 — ตลาดปิด")
+                    continue
+
                 trigger  = None
                 if tick % INTERVAL_MINUTES == 0:
                     trigger = f"รายงาน {INTERVAL_MINUTES} นาที"
