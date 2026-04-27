@@ -262,6 +262,18 @@ def monitor_loop():
             except Exception as e:
                 print(f"[ERROR] {symbol}: {e}")
 
+# เริ่ม monitor_loop ตอน import — ทำงานกับทั้ง gunicorn และ python app.py
+_monitor_started = False
+def start_monitor():
+    global _monitor_started
+    if not _monitor_started:
+        _monitor_started = True
+        t = threading.Thread(target=monitor_loop, daemon=True)
+        t.start()
+        print("✅ monitor_loop started")
+
+start_monitor()
+
 @app.route("/", methods=["GET"])
 def index():
     return "OK", 200
