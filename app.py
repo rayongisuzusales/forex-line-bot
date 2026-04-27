@@ -18,16 +18,16 @@ INTERVAL_MINUTES  = int(os.environ.get("INTERVAL_MINUTES", "15"))
 BKK = pytz.timezone("Asia/Bangkok")
 
 SL_PIPS = {
-    "USDJPY": 15,
-    "XAUUSD": 150,
-    "EURUSD": 15,
-    "BTC/USD": 500,   # SL $500
+    "USD/JPY": 15,
+    "XAU/USD": 150,
+    "EUR/USD": 15,
+    "BTC/USD": 500,
 }
 
 SYMBOLS = {
-    "USDJPY":  {"name": "💴 USD/JPY",        "pip": 0.01},
-    "XAUUSD":  {"name": "🥇 Gold (XAU/USD)", "pip": 0.1},
-    "EURUSD":  {"name": "💵 EUR/USD",         "pip": 0.0001},
+    "USD/JPY": {"name": "💴 USD/JPY",         "pip": 0.01},
+    "XAU/USD": {"name": "🥇 Gold (XAU/USD)",  "pip": 0.1},
+    "EUR/USD": {"name": "💵 EUR/USD",          "pip": 0.0001},
     "BTC/USD": {"name": "₿ Bitcoin (BTC/USD)", "pip": 1.0},
 }
 
