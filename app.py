@@ -211,35 +211,60 @@ def send_line(message):
 def near_level(price, level, pip_size, pips=10):
     return abs(price - level) <= pip_size * pips
 
+# cache แนวรับ/แนวต้าน เพื่อประหยัด API credits
+_levels_cache = {}
+_levels_cache_time = {}
+CACHE_MINUTES = 15  # อัปเดตแนวรับ/แนวต้านทุก 15 นาที
+
+def get_levels_cached(symbol):
+    now = datetime.now(BKK)
+    last = _levels_cache_time.get(symbol)
+    if last is None or (now - last).seconds >= CACHE_MINUTES * 60:
+        candles  = get_candles(symbol)
+        auto_lvl = calc_auto_levels(candles)
+        man_lvl  = get_manual_levels()
+        levels   = merge_levels(auto_lvl, man_lvl)
+        analysis = analyze_signal(candles, 0)
+        _levels_cache[symbol] = (levels, analysis, candles)
+        _levels_cache_time[symbol] = now
+        print(f"[CACHE] {symbol} อัปเดตแนวรับ/แนวต้านแล้ว")
+    return _levels_cache.get(symbol, ({"support": [], "resistance": []}, {"trend": "-", "signal": "WAIT", "rsi": None, "ema9": None, "ema21": None}, []))
+
 def monitor_loop():
-    last_interval_sent = {}  # เก็บว่าส่งรอบไหนไปแล้ว
+    last_interval_sent = {}
     while True:
         time.sleep(60)
         now = datetime.now(BKK)
         current_slot = (now.hour * 60 + now.minute) // INTERVAL_MINUTES
+        is_interval_time = any(
+            last_interval_sent.get(sym) != current_slot
+            for sym in SYMBOLS
+        )
 
         for symbol, info in SYMBOLS.items():
             try:
+                # ดึงราคาปัจจุบันทุก 1 นาที (1 credit)
                 price = get_price(symbol)
-                if price is None:
-                    continue
-                candles  = get_candles(symbol)
-                auto_lvl = calc_auto_levels(candles)
-                man_lvl  = get_manual_levels()
-                levels   = merge_levels(auto_lvl, man_lvl)
-                analysis = analyze_signal(candles, price)
-
-                # ข้ามถ้าราคา = 0 เช่น Forex ปิดเสาร์-อาทิตย์
                 if not price or price == 0:
                     print(f"[SKIP] {symbol} ราคา 0 — ตลาดปิด")
                     continue
 
-                trigger  = None
+                # ดึง candles/levels เฉพาะตอนถึงเวลา 15 นาที (ประหยัด credits)
+                if is_interval_time or symbol not in _levels_cache:
+                    levels, analysis, _ = get_levels_cached(symbol)
+                    # force refresh
+                    _levels_cache_time[symbol] = None
+                    levels, analysis, _ = get_levels_cached(symbol)
+                else:
+                    levels, analysis, _ = get_levels_cached(symbol)
+
+                trigger = None
 
                 # เช็คเวลาจริง — ส่งเมื่อถึง slot ใหม่ทุก 15 นาที
                 if last_interval_sent.get(symbol) != current_slot:
                     trigger = f"รายงาน {INTERVAL_MINUTES} นาที"
                     last_interval_sent[symbol] = current_slot
+
                 pip = info["pip"]
                 for lvl in levels["support"]:
                     key = f"S{lvl}"
@@ -255,6 +280,7 @@ def monitor_loop():
                         price_state[symbol]["alerted_levels"].add(key)
                     elif not near_level(price, lvl, pip):
                         price_state[symbol]["alerted_levels"].discard(key)
+
                 if trigger:
                     msg = build_message(symbol, price, levels, analysis, trigger)
                     send_line(msg)
