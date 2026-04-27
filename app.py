@@ -294,8 +294,8 @@ def test_send():
     return jsonify({"status": "sent", "sent": sent, "skipped_market_closed": skipped})
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
     t = threading.Thread(target=monitor_loop, daemon=True)
     t.start()
-    print("✅ Forex Line Bot started")
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    print(f"✅ Forex Line Bot started on port {port}")
+    app.run(host="0.0.0.0", port=port, threaded=True, use_reloader=False)
