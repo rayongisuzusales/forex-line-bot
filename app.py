@@ -201,10 +201,10 @@ def build_message(symbol, price, levels, analysis, trigger):
 
 def send_line(message):
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"}
-    payload = {"to": LINE_USER_ID, "messages": [{"type": "text", "text": message}]}
+    payload = {"messages": [{"type": "text", "text": message}]}
     try:
-        r = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json=payload, timeout=10)
-        print(f"[LINE] {r.status_code} {r.text[:80]}")
+        r = requests.post("https://api.line.me/v2/bot/message/broadcast", headers=headers, json=payload, timeout=10)
+        print(f"[LINE BROADCAST] {r.status_code} {r.text[:80]}")
     except Exception as e:
         print(f"[LINE ERROR] {e}")
 
