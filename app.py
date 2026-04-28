@@ -233,7 +233,7 @@ def get_levels_cached(symbol):
 def monitor_loop():
     last_interval_sent = {}
     while True:
-        time.sleep(60)
+        time.sleep(300)  # เช็คทุก 5 นาที แทน 1 นาที — ประหยัด credits 5 เท่า
         now = datetime.now(BKK)
         current_slot = (now.hour * 60 + now.minute) // INTERVAL_MINUTES
         is_interval_time = any(
