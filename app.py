@@ -33,48 +33,23 @@ SYMBOLS = {
 
 price_state = {sym: {"last_price": None, "alerted_levels": set()} for sym in SYMBOLS}
 
-# Yahoo Finance symbol mapping
-YAHOO_SYMBOLS = {
-    "USD/JPY": "USDJPY=X",
-    "XAU/USD": "GC=F",
-    "EUR/USD": "EURUSD=X",
-    "BTC/USD": "BTC-USD",
-}
-
 def get_price(symbol):
     try:
-        yahoo_sym = YAHOO_SYMBOLS.get(symbol, symbol)
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_sym}?interval=1m&range=1d"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=10)
+        url = f"https://api.twelvedata.com/price?symbol={symbol}&apikey={TWELVE_API_KEY}"
+        r = requests.get(url, timeout=10)
         data = r.json()
-        price = data["chart"]["result"][0]["meta"]["regularMarketPrice"]
-        return float(price)
+        return float(data["price"]) if "price" in data else None
     except Exception:
         return None
 
-def get_candles(symbol, interval="15m", outputsize=50):
+def get_candles(symbol, interval="15min", outputsize=50):
     try:
-        yahoo_sym = YAHOO_SYMBOLS.get(symbol, symbol)
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_sym}?interval={interval}&range=5d"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=15)
+        url = (f"https://api.twelvedata.com/time_series"
+               f"?symbol={symbol}&interval={interval}"
+               f"&outputsize={outputsize}&apikey={TWELVE_API_KEY}")
+        r = requests.get(url, timeout=15)
         data = r.json()
-        result = data["chart"]["result"][0]
-        timestamps = result["timestamp"]
-        quotes = result["indicators"]["quote"][0]
-        candles = []
-        for i in range(len(timestamps)):
-            try:
-                candles.append({
-                    "open":  str(quotes["open"][i]  or 0),
-                    "high":  str(quotes["high"][i]  or 0),
-                    "low":   str(quotes["low"][i]   or 0),
-                    "close": str(quotes["close"][i] or 0),
-                })
-            except Exception:
-                continue
-        return list(reversed(candles[:50]))
+        return data.get("values", [])
     except Exception:
         return []
 
