@@ -10,6 +10,7 @@ app = Flask(__name__)
 
 LINE_TOKEN        = os.environ.get("LINE_TOKEN", "YOUR_LINE_CHANNEL_ACCESS_TOKEN")
 LINE_USER_ID      = os.environ.get("LINE_USER_ID", "YOUR_LINE_USER_ID")
+LINE_GROUP_ID     = os.environ.get("LINE_GROUP_ID", "")   # ← เพิ่มใหม่
 TWELVE_API_KEY    = os.environ.get("TWELVE_API_KEY", "YOUR_TWELVEDATA_API_KEY")
 MANUAL_SUPPORT    = os.environ.get("MANUAL_SUPPORT", "")
 MANUAL_RESIST     = os.environ.get("MANUAL_RESIST", "")
@@ -201,20 +202,21 @@ def build_message(symbol, price, levels, analysis, trigger):
 
 def send_line(message):
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"}
-    payload = {"to": LINE_USER_ID, "messages": [{"type": "text", "text": message}]}
+    # ถ้ามี GROUP_ID ให้ส่งเข้า Group, ถ้าไม่มีส่งหา User
+    target = LINE_GROUP_ID if LINE_GROUP_ID else LINE_USER_ID
+    payload = {"to": target, "messages": [{"type": "text", "text": message}]}
     try:
         r = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json=payload, timeout=10)
-        print(f"[LINE PUSH] {r.status_code} {r.text[:80]}")
+        print(f"[LINE PUSH] to={target[:10]}... {r.status_code} {r.text[:80]}")
     except Exception as e:
         print(f"[LINE ERROR] {e}")
 
 def near_level(price, level, pip_size, pips=10):
     return abs(price - level) <= pip_size * pips
 
-# cache แนวรับ/แนวต้าน เพื่อประหยัด API credits
 _levels_cache = {}
 _levels_cache_time = {}
-CACHE_MINUTES = 15  # อัปเดตแนวรับ/แนวต้านทุก 15 นาที
+CACHE_MINUTES = 15
 
 def get_levels_cached(symbol):
     now = datetime.now(BKK)
@@ -233,7 +235,7 @@ def get_levels_cached(symbol):
 def monitor_loop():
     last_interval_sent = {}
     while True:
-        time.sleep(300)  # เช็คทุก 5 นาที แทน 1 นาที — ประหยัด credits 5 เท่า
+        time.sleep(300)
         now = datetime.now(BKK)
         current_slot = (now.hour * 60 + now.minute) // INTERVAL_MINUTES
         is_interval_time = any(
@@ -243,16 +245,13 @@ def monitor_loop():
 
         for symbol, info in SYMBOLS.items():
             try:
-                # ดึงราคาปัจจุบันทุก 1 นาที (1 credit)
                 price = get_price(symbol)
                 if not price or price == 0:
                     print(f"[SKIP] {symbol} ราคา 0 — ตลาดปิด")
                     continue
 
-                # ดึง candles/levels เฉพาะตอนถึงเวลา 15 นาที (ประหยัด credits)
                 if is_interval_time or symbol not in _levels_cache:
                     levels, analysis, _ = get_levels_cached(symbol)
-                    # force refresh
                     _levels_cache_time[symbol] = None
                     levels, analysis, _ = get_levels_cached(symbol)
                 else:
@@ -260,7 +259,6 @@ def monitor_loop():
 
                 trigger = None
 
-                # เช็คเวลาจริง — ส่งเมื่อถึง slot ใหม่ทุก 15 นาที
                 if last_interval_sent.get(symbol) != current_slot:
                     trigger = f"รายงาน {INTERVAL_MINUTES} นาที"
                     last_interval_sent[symbol] = current_slot
@@ -288,7 +286,6 @@ def monitor_loop():
             except Exception as e:
                 print(f"[ERROR] {symbol}: {e}")
 
-# เริ่ม monitor_loop ตอน import — ทำงานกับทั้ง gunicorn และ python app.py
 _monitor_started = False
 def start_monitor():
     global _monitor_started
