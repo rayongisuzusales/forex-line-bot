@@ -201,10 +201,10 @@ def build_message(symbol, price, levels, analysis, trigger):
 
 def send_line(message):
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"}
-    payload = {"messages": [{"type": "text", "text": message}]}
+    payload = {"to": LINE_USER_ID, "messages": [{"type": "text", "text": message}]}
     try:
-        r = requests.post("https://api.line.me/v2/bot/message/broadcast", headers=headers, json=payload, timeout=10)
-        print(f"[LINE BROADCAST] {r.status_code} {r.text[:80]}")
+        r = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json=payload, timeout=10)
+        print(f"[LINE PUSH] {r.status_code} {r.text[:80]}")
     except Exception as e:
         print(f"[LINE ERROR] {e}")
 
@@ -310,6 +310,19 @@ def health():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
+    try:
+        data = request.get_json()
+        for event in data.get("events", []):
+            source = event.get("source", {})
+            source_type = source.get("type", "")
+            if source_type == "group":
+                group_id = source.get("groupId", "")
+                print(f"[WEBHOOK] *** GROUP ID: {group_id} ***")
+            elif source_type == "user":
+                user_id = source.get("userId", "")
+                print(f"[WEBHOOK] USER ID: {user_id}")
+    except Exception as e:
+        print(f"[WEBHOOK ERROR] {e}")
     return jsonify({"status": "ok"})
 
 @app.route("/test", methods=["GET"])
