@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 LINE_TOKEN        = os.environ.get("LINE_TOKEN", "YOUR_LINE_CHANNEL_ACCESS_TOKEN")
 LINE_USER_ID      = os.environ.get("LINE_USER_ID", "YOUR_LINE_USER_ID")
-LINE_GROUP_ID     = os.environ.get("LINE_GROUP_ID", "")   # ← เพิ่มใหม่
+LINE_GROUP_ID     = os.environ.get("LINE_GROUP_ID", "")
 TWELVE_API_KEY    = os.environ.get("TWELVE_API_KEY", "YOUR_TWELVEDATA_API_KEY")
 MANUAL_SUPPORT    = os.environ.get("MANUAL_SUPPORT", "")
 MANUAL_RESIST     = os.environ.get("MANUAL_RESIST", "")
@@ -202,14 +202,34 @@ def build_message(symbol, price, levels, analysis, trigger):
 
 def send_line(message):
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"}
-    # ถ้ามี GROUP_ID ให้ส่งเข้า Group, ถ้าไม่มีส่งหา User
-    target = LINE_GROUP_ID if LINE_GROUP_ID else LINE_USER_ID
-    payload = {"to": target, "messages": [{"type": "text", "text": message}]}
+
+    # ส่งแบบ Multicast เข้า Group (ไม่นับ monthly quota)
+    if LINE_GROUP_ID:
+        payload = {
+            "to": [LINE_GROUP_ID],
+            "messages": [{"type": "text", "text": message}]
+        }
+        try:
+            r = requests.post(
+                "https://api.line.me/v2/bot/message/multicast",
+                headers=headers, json=payload, timeout=10
+            )
+            print(f"[LINE MULTICAST] {r.status_code} {r.text[:120]}")
+            if r.status_code == 200:
+                return
+        except Exception as e:
+            print(f"[LINE MULTICAST ERROR] {e}")
+
+    # Fallback: Broadcast หาทุกคนที่ Follow Bot
+    payload = {"messages": [{"type": "text", "text": message}]}
     try:
-        r = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json=payload, timeout=10)
-        print(f"[LINE PUSH] to={target[:10]}... {r.status_code} {r.text[:80]}")
+        r = requests.post(
+            "https://api.line.me/v2/bot/message/broadcast",
+            headers=headers, json=payload, timeout=10
+        )
+        print(f"[LINE BROADCAST] {r.status_code} {r.text[:120]}")
     except Exception as e:
-        print(f"[LINE ERROR] {e}")
+        print(f"[LINE BROADCAST ERROR] {e}")
 
 def near_level(price, level, pip_size, pips=10):
     return abs(price - level) <= pip_size * pips
